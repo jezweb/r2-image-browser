@@ -1,3 +1,37 @@
+// Basic Authentication check function
+function isAuthenticated(request, env) {
+  const authorization = request.headers.get('Authorization');
+  
+  if (!authorization || !authorization.startsWith('Basic ')) {
+    return false;
+  }
+  
+  try {
+    const encoded = authorization.substring(6); // Remove 'Basic ' prefix
+    const decoded = atob(encoded);
+    const [username, password] = decoded.split(':');
+    
+    // Use environment variables or default credentials
+    const validUsername = env.BASIC_USER || 'jezweb';
+    const validPassword = env.BASIC_PASS || 'iconbrowser';
+    
+    return username === validUsername && password === validPassword;
+  } catch (error) {
+    return false;
+  }
+}
+
+// Authentication required response
+function unauthorizedResponse() {
+  return new Response('Authentication required', {
+    status: 401,
+    headers: {
+      'WWW-Authenticate': 'Basic realm="R2 Image Browser"',
+      'Content-Type': 'text/plain',
+    },
+  });
+}
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
@@ -6,12 +40,17 @@ export default {
     const corsHeaders = {
       'Access-Control-Allow-Origin': '*',
       'Access-Control-Allow-Methods': 'GET, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type',
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization',
     };
 
     // Handle CORS preflight
     if (request.method === 'OPTIONS') {
       return new Response(null, { headers: corsHeaders });
+    }
+
+    // Check authentication for all routes except static assets
+    if (!isAuthenticated(request, env)) {
+      return unauthorizedResponse();
     }
 
     // API Routes
