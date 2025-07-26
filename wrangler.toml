@@ -1,0 +1,15 @@
+name = "r2-image-browser"
+main = "src/index.js"
+compatibility_date = "2025-01-26"
+assets = { directory = "./dist" }
+account_id = "0460574641fdbb98159c98ebf593e2bd"
+
+# R2 bucket binding
+[[r2_buckets]]
+binding = "IMAGE_BUCKET"
+bucket_name = "icons"
+
+# KV namespace for caching (optional)
+# [[kv_namespaces]]
+# binding = "CACHE"
+# id = "your-kv-namespace-id"
