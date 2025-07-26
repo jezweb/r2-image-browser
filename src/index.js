@@ -62,6 +62,11 @@ export default {
       const folder = url.searchParams.get('folder');
       return handleListImages(env, folder, corsHeaders);
     }
+    
+    // Admin API Routes
+    if (url.pathname === '/api/admin/stats') {
+      return handleGetStats(env, corsHeaders);
+    }
 
     // Serve static assets (Vue app)
     return env.ASSETS.fetch(request);
@@ -147,6 +152,63 @@ async function handleListImages(env, folder, corsHeaders) {
         uploaded: obj.uploaded,
         url: `https://icons.jezweb.com/${encodeURIComponent(obj.key).replace(/%2F/g, '/')}`
       }))
+    }), {
+      headers: {
+        'Content-Type': 'application/json',
+        ...corsHeaders
+      }
+    });
+  } catch (error) {
+    return new Response(JSON.stringify({
+      success: false,
+      error: error.message
+    }), {
+      status: 500,
+      headers: {
+        'Content-Type': 'application/json',
+        ...corsHeaders
+      }
+    });
+  }
+}
+
+async function handleGetStats(env, corsHeaders) {
+  try {
+    // Get bucket statistics
+    const listed = await env.IMAGE_BUCKET.list({ limit: 1000 });
+    
+    let totalFiles = 0;
+    let totalSize = 0;
+    let fileTypes = {};
+    let folderCount = new Set();
+    
+    // Process all objects
+    for (const obj of listed.objects || []) {
+      // Skip .thumb directory
+      if (obj.key.includes('/.thumb/')) continue;
+      
+      totalFiles++;
+      totalSize += obj.size || 0;
+      
+      // Count file types
+      const ext = obj.key.split('.').pop().toLowerCase();
+      fileTypes[ext] = (fileTypes[ext] || 0) + 1;
+      
+      // Count folders
+      const folder = obj.key.split('/')[0];
+      if (folder) folderCount.add(folder);
+    }
+    
+    return new Response(JSON.stringify({
+      success: true,
+      stats: {
+        totalFiles,
+        totalSize,
+        totalSizeMB: (totalSize / (1024 * 1024)).toFixed(2),
+        folderCount: folderCount.size,
+        fileTypes,
+        lastUpdated: new Date().toISOString()
+      }
     }), {
       headers: {
         'Content-Type': 'application/json',
