@@ -1,6 +1,10 @@
 <template>
   <div class="app-container">
-    <div class="layout-wrapper">
+    <!-- Login Form -->
+    <LoginForm v-if="!isAuthenticated" @login-success="handleLoginSuccess" />
+    
+    <!-- Main App -->
+    <div v-else class="layout-wrapper">
       <!-- Sidebar -->
       <div class="sidebar">
         <h2 class="sidebar-title">
@@ -33,13 +37,19 @@
             </button>
             <h1 class="app-title">R2 Image Browser</h1>
           </div>
-          <div class="header-info">
+          <div class="header-right">
+            <div class="header-info">
             <span v-if="selectedFolder">
               {{ images.length }} images in {{ selectedFolder }}
             </span>
             <span v-else>
               Select a folder to view images
             </span>
+            </div>
+            <button @click="logout" class="logout-button">
+              <i class="pi pi-sign-out"></i>
+              Logout
+            </button>
           </div>
         </div>
 
@@ -95,9 +105,13 @@
 
 <script>
 import { ref, onMounted } from 'vue'
+import LoginForm from './components/LoginForm.vue'
 
 export default {
   name: 'App',
+  components: {
+    LoginForm
+  },
   setup() {
     const folders = ref([])
     const images = ref([])
@@ -105,10 +119,22 @@ export default {
     const loading = ref(false)
     const showToast = ref(false)
     const toastMessage = ref('')
+    const isAuthenticated = ref(false)
+    const authHeader = ref('')
 
     const loadFolders = async () => {
       try {
-        const response = await fetch('/api/folders')
+        const response = await fetch('/api/folders', {
+          headers: {
+            'Authorization': authHeader.value
+          }
+        })
+        
+        if (response.status === 401) {
+          handleAuthError()
+          return
+        }
+        
         const data = await response.json()
         if (data.success) {
           folders.value = data.folders
@@ -117,6 +143,7 @@ export default {
         }
       } catch (error) {
         console.error('Error loading folders:', error)
+        showNotification('Failed to load folders', 'error')
       }
     }
 
@@ -130,13 +157,24 @@ export default {
       loading.value = true
       try {
         const url = `/api/images?folder=${encodeURIComponent(folder)}`
-        const response = await fetch(url)
+        const response = await fetch(url, {
+          headers: {
+            'Authorization': authHeader.value
+          }
+        })
+        
+        if (response.status === 401) {
+          handleAuthError()
+          return
+        }
+        
         const data = await response.json()
         if (data.success) {
           images.value = data.images
         }
       } catch (error) {
         console.error('Error loading images:', error)
+        showNotification('Failed to load images', 'error')
       } finally {
         loading.value = false
       }
@@ -198,9 +236,38 @@ export default {
     const imageError = (event) => {
       event.target.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="100" height="100"%3E%3Crect width="100" height="100" fill="%23ddd"/%3E%3Ctext x="50" y="50" text-anchor="middle" dy=".3em" fill="%23999"%3EError%3C/text%3E%3C/svg%3E'
     }
+    
+    const handleLoginSuccess = (auth) => {
+      authHeader.value = auth
+      isAuthenticated.value = true
+      loadFolders()
+    }
+    
+    const handleAuthError = () => {
+      isAuthenticated.value = false
+      authHeader.value = ''
+      localStorage.removeItem('auth')
+      showNotification('Session expired. Please login again.', 'error')
+    }
+    
+    const logout = () => {
+      isAuthenticated.value = false
+      authHeader.value = ''
+      localStorage.removeItem('auth')
+      folders.value = []
+      images.value = []
+      selectedFolder.value = ''
+      showNotification('Logged out successfully')
+    }
 
     onMounted(() => {
-      loadFolders()
+      // Check for existing auth on load
+      const storedAuth = localStorage.getItem('auth')
+      if (storedAuth) {
+        authHeader.value = storedAuth
+        isAuthenticated.value = true
+        loadFolders()
+      }
     })
 
     return {
@@ -215,7 +282,10 @@ export default {
       formatSize,
       imageLoaded,
       imageError,
-      goBack
+      goBack,
+      isAuthenticated,
+      handleLoginSuccess,
+      logout
     }
   }
 }
@@ -305,6 +375,12 @@ body {
   align-items: center;
 }
 
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
 .header-left {
   display: flex;
   align-items: center;
@@ -337,6 +413,25 @@ body {
 .header-info {
   color: #666;
   font-size: 14px;
+}
+
+.logout-button {
+  background-color: #f5f7fa;
+  border: 1px solid #e0e6ed;
+  padding: 8px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.2s;
+}
+
+.logout-button:hover {
+  background-color: #ffebee;
+  border-color: #ef5350;
+  color: #c62828;
 }
 
 /* Empty State */
