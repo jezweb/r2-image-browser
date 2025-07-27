@@ -1,102 +1,37 @@
 <template>
   <div class="layout-wrapper">
-    <!-- Sidebar -->
-    <div class="sidebar">
-      <h2 class="sidebar-title">
-        <i class="pi pi-folder mr-2"></i>
-        Collections
-      </h2>
-      <div class="folder-list">
-        <div
-          v-for="folder in folders"
-          :key="folder.path"
-          :class="['folder-item', { active: selectedFolder === folder.path }]"
-          @click="selectFolder(folder.path)"
-        >
-          <i class="pi pi-folder mr-2"></i>
-          {{ folder.name }}
-        </div>
-        <div v-if="folders.length === 0" class="no-folders">
-          No folders found
-        </div>
+    <!-- Enhanced Folder Navigation -->
+    <div class="navigation-section">
+      <FolderNavigator 
+        :initial-path="selectedFolder"
+        @navigate="handleFolderNavigation"
+        @file-selected="handleFileSelected"
+        @upload-request="handleUploadRequest"
+        @folder-action="handleFolderAction"
+      />
+    </div>
+
+    <!-- Header with Admin/Logout controls -->
+    <div class="top-header">
+      <div class="header-left">
+        <h1 class="app-title">R2 Image Browser</h1>
+      </div>
+      <div class="header-right">
+        <router-link to="/admin" class="admin-button">
+          <i class="pi pi-cog"></i>
+          Admin
+        </router-link>
+        <button @click="logout" class="logout-button">
+          <i class="pi pi-sign-out"></i>
+          Logout
+        </button>
       </div>
     </div>
 
-    <!-- Main Content -->
-    <div class="main-content">
-      <div class="header">
-        <div class="header-left">
-          <button v-if="selectedFolder" @click="goBack" class="back-button">
-            <i class="pi pi-arrow-left mr-2"></i>
-            Back to folders
-          </button>
-          <h1 class="app-title">R2 Image Browser</h1>
-        </div>
-        <div class="header-right">
-          <div class="header-info">
-          <span v-if="selectedFolder">
-            {{ images.length }} images in {{ selectedFolder }}
-          </span>
-          <span v-else>
-            Select a folder to view images
-          </span>
-          </div>
-          <router-link to="/admin" class="admin-button">
-            <i class="pi pi-cog"></i>
-            Admin
-          </router-link>
-          <button @click="logout" class="logout-button">
-            <i class="pi pi-sign-out"></i>
-            Logout
-          </button>
-        </div>
-      </div>
-
-      <!-- Empty State -->
-      <div v-if="!selectedFolder && !loading" class="empty-state">
-        <i class="pi pi-folder-open" style="font-size: 48px; color: #ccc; margin-bottom: 20px;"></i>
-        <h3>No folder selected</h3>
-        <p>Select a folder from the sidebar to view its images</p>
-      </div>
-
-      <!-- Image Grid -->
-      <div v-else class="image-grid">
-        <div
-          v-for="image in images"
-          :key="image.key"
-          class="image-card"
-          @click="copyImageUrl(image)"
-        >
-          <div class="image-wrapper">
-            <img
-              :src="image.url"
-              :alt="image.name"
-              @load="imageLoaded"
-              @error="imageError"
-            />
-          </div>
-          <div class="image-info">
-            <div class="image-name">{{ image.name }}</div>
-            <div class="image-size">{{ formatSize(image.size) }}</div>
-          </div>
-          <div class="copy-overlay">
-            <i class="pi pi-copy"></i>
-            Click to copy URL
-          </div>
-        </div>
-      </div>
-
-      <!-- Loading State -->
-      <div v-if="loading" class="loading">
-        <i class="pi pi-spin pi-spinner"></i>
-        Loading...
-      </div>
-
-      <!-- Toast for copy notification -->
-      <div v-if="showToast" class="toast">
-        <i class="pi pi-check-circle mr-2"></i>
-        {{ toastMessage }}
-      </div>
+    <!-- Toast for copy notification -->
+    <div v-if="showToast" class="toast">
+      <i class="pi pi-check-circle mr-2"></i>
+      {{ toastMessage }}
     </div>
   </div>
 </template>
@@ -104,9 +39,13 @@
 <script>
 import { ref, onMounted, inject } from 'vue'
 import { useRouter } from 'vue-router'
+import FolderNavigator from '../components/FolderNavigator.vue'
 
 export default {
   name: 'BrowserView',
+  components: {
+    FolderNavigator
+  },
   setup() {
     const router = useRouter()
     const authHeader = inject('authHeader')
@@ -116,6 +55,7 @@ export default {
     const loading = ref(false)
     const showToast = ref(false)
     const toastMessage = ref('')
+    const showNavigatorOnly = ref(false)
 
     const loadFolders = async () => {
       try {
@@ -240,6 +180,30 @@ export default {
       window.location.reload()
     }
 
+    // New event handlers for FolderNavigator
+    const handleFolderNavigation = (folderPath) => {
+      selectedFolder.value = folderPath
+      loadImages(folderPath)
+    }
+
+    const handleFileSelected = (file) => {
+      if (file.url) {
+        copyImageUrl(file)
+      }
+    }
+
+    const handleUploadRequest = (path) => {
+      // Could open an upload modal or redirect to admin
+      router.push('/admin')
+    }
+
+    const handleFolderAction = (action) => {
+      // Handle folder actions like create, rename, move, delete
+      console.log('Folder action:', action)
+      // For now, just show a notification
+      showNotification(`Folder action: ${action.action}`, 'info')
+    }
+
     onMounted(() => {
       loadFolders()
     })
@@ -251,91 +215,42 @@ export default {
       loading,
       showToast,
       toastMessage,
+      showNavigatorOnly,
       selectFolder,
       copyImageUrl,
       formatSize,
       imageLoaded,
       imageError,
       goBack,
-      logout
+      logout,
+      handleFolderNavigation,
+      handleFileSelected,
+      handleUploadRequest,
+      handleFolderAction
     }
   }
 }
 </script>
 
 <style scoped>
-/* Import styles from App.vue - keeping them consistent */
+/* Enhanced layout with FolderNavigator */
 .layout-wrapper {
   display: flex;
+  flex-direction: column;
   height: 100vh;
-}
-
-/* Sidebar */
-.sidebar {
-  width: 250px;
-  background-color: #fff;
-  border-right: 1px solid #e0e6ed;
-  overflow-y: auto;
-}
-
-.sidebar-title {
-  padding: 20px;
-  font-size: 18px;
-  font-weight: 600;
-  border-bottom: 1px solid #e0e6ed;
-  display: flex;
-  align-items: center;
-}
-
-.folder-list {
-  padding: 10px;
-}
-
-.folder-item {
-  padding: 12px 15px;
-  cursor: pointer;
-  border-radius: 6px;
-  transition: all 0.2s;
-  display: flex;
-  align-items: center;
-  margin-bottom: 5px;
-}
-
-.folder-item:hover {
   background-color: #f5f7fa;
 }
 
-.folder-item.active {
-  background-color: #e3f2fd;
-  color: #1976d2;
-}
-
-.no-folders {
-  padding: 20px;
-  text-align: center;
-  color: #666;
-}
-
-/* Main Content */
-.main-content {
-  flex: 1;
-  overflow-y: auto;
-  background-color: #f5f7fa;
-}
-
-.header {
+/* Top Header */
+.top-header {
   background-color: #fff;
-  padding: 20px 30px;
+  padding: 15px 30px;
   border-bottom: 1px solid #e0e6ed;
   display: flex;
   justify-content: space-between;
   align-items: center;
-}
-
-.header-right {
-  display: flex;
-  align-items: center;
-  gap: 20px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+  z-index: 10;
 }
 
 .header-left {
@@ -344,22 +259,27 @@ export default {
   gap: 20px;
 }
 
-.back-button {
-  background-color: #f5f7fa;
-  border: 1px solid #e0e6ed;
-  padding: 8px 16px;
-  border-radius: 6px;
-  cursor: pointer;
-  font-size: 14px;
+.header-right {
   display: flex;
   align-items: center;
-  transition: all 0.2s;
+  gap: 15px;
 }
 
-.back-button:hover {
-  background-color: #e3f2fd;
-  border-color: #1976d2;
-  color: #1976d2;
+/* Navigation Section */
+.navigation-section {
+  flex: 1;
+  overflow: hidden;
+  background-color: #fff;
+  margin: 10px;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.app-title {
+  font-size: 24px;
+  font-weight: 600;
+  color: #333;
+  margin: 0;
 }
 
 .admin-button {
@@ -381,16 +301,6 @@ export default {
   background-color: #45a049;
 }
 
-.app-title {
-  font-size: 24px;
-  font-weight: 600;
-}
-
-.header-info {
-  color: #666;
-  font-size: 14px;
-}
-
 .logout-button {
   background-color: #f5f7fa;
   border: 1px solid #e0e6ed;
@@ -408,130 +318,6 @@ export default {
   background-color: #ffebee;
   border-color: #ef5350;
   color: #c62828;
-}
-
-/* Empty State */
-.empty-state {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  height: 400px;
-  color: #666;
-}
-
-.empty-state h3 {
-  margin: 0 0 10px 0;
-  font-size: 20px;
-  font-weight: 500;
-}
-
-.empty-state p {
-  margin: 0;
-  font-size: 16px;
-  color: #999;
-}
-
-/* Image Grid */
-.image-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-  gap: 20px;
-  padding: 30px;
-}
-
-.image-card {
-  background-color: #fff;
-  border-radius: 8px;
-  overflow: hidden;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  cursor: pointer;
-  transition: all 0.3s;
-  position: relative;
-}
-
-.image-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
-}
-
-.image-card:hover .copy-overlay {
-  opacity: 1;
-}
-
-.image-wrapper {
-  width: 100%;
-  height: 200px;
-  background-color: #f5f7fa;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  overflow: hidden;
-}
-
-.image-wrapper img {
-  max-width: 100%;
-  max-height: 100%;
-  object-fit: contain;
-  opacity: 0;
-  transition: opacity 0.3s;
-}
-
-.image-wrapper img.loaded {
-  opacity: 1;
-}
-
-.image-info {
-  padding: 15px;
-}
-
-.image-name {
-  font-weight: 500;
-  margin-bottom: 5px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.image-size {
-  font-size: 12px;
-  color: #666;
-}
-
-.copy-overlay {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-color: rgba(0, 0, 0, 0.7);
-  color: white;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  opacity: 0;
-  transition: opacity 0.3s;
-  font-size: 14px;
-}
-
-.copy-overlay i {
-  font-size: 24px;
-  margin-bottom: 10px;
-}
-
-/* Loading */
-.loading {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 50px;
-  font-size: 16px;
-  color: #666;
-}
-
-.loading i {
-  margin-right: 10px;
 }
 
 /* Toast */
@@ -563,14 +349,24 @@ export default {
 
 /* Responsive */
 @media (max-width: 768px) {
-  .sidebar {
-    display: none;
+  .top-header {
+    padding: 10px 15px;
+    flex-direction: column;
+    gap: 10px;
+    align-items: stretch;
   }
   
-  .image-grid {
-    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-    gap: 15px;
-    padding: 20px;
+  .header-right {
+    justify-content: center;
+  }
+  
+  .navigation-section {
+    margin: 5px;
+  }
+  
+  .app-title {
+    font-size: 20px;
+    text-align: center;
   }
 }
 

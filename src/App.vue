@@ -5,17 +5,22 @@
     
     <!-- Router View for authenticated content -->
     <router-view v-else />
+    
+    <!-- Toast notifications -->
+    <Toast />
   </div>
 </template>
 
 <script>
 import { ref, onMounted, provide } from 'vue'
 import LoginForm from './components/LoginForm.vue'
+import Toast from 'primevue/toast'
 
 export default {
   name: 'App',
   components: {
-    LoginForm
+    LoginForm,
+    Toast
   },
   setup() {
     const isAuthenticated = ref(false)

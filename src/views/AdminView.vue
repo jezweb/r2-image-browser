@@ -81,9 +81,15 @@
       <h2>Quick Actions</h2>
       <div class="actions-grid">
         <div class="action-card" @click="showUploadModal = true">
-          <i class="pi pi-upload"></i>
-          <h3>Upload Images</h3>
-          <p>Add new images to your collections</p>
+          <i class="pi pi-file-upload"></i>
+          <h3>Upload Files</h3>
+          <p>Upload individual image files</p>
+        </div>
+
+        <div class="action-card" @click="showFolderUploadModal = true">
+          <i class="pi pi-folder-open"></i>
+          <h3>Upload Folder</h3>
+          <p>Upload entire folder with structure</p>
         </div>
 
         <div class="action-card" @click="showCreateFolderModal = true">
@@ -100,25 +106,84 @@
       </div>
     </div>
 
+    <!-- Folder Management -->
+    <div class="folder-management-section">
+      <FolderManager @foldersChanged="handleFoldersChanged" ref="folderManager" />
+    </div>
+
     <!-- Loading State -->
     <div v-if="loading" class="loading-overlay">
       <i class="pi pi-spin pi-spinner"></i>
       Loading statistics...
     </div>
+
+    <!-- File Upload Modal -->
+    <div v-if="showUploadModal" class="modal-overlay" @click.self="showUploadModal = false">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2>Upload Image Files</h2>
+          <button @click="showUploadModal = false" class="modal-close">
+            <i class="pi pi-times"></i>
+          </button>
+        </div>
+        <div class="modal-body">
+          <FolderTreeUpload @uploaded="handleUploaded" :fileOnly="true" />
+        </div>
+      </div>
+    </div>
+
+    <!-- Create Folder Modal -->
+    <div v-if="showCreateFolderModal" class="modal-overlay" @click.self="showCreateFolderModal = false">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2>Create New Folder</h2>
+          <button @click="showCreateFolderModal = false" class="modal-close">
+            <i class="pi pi-times"></i>
+          </button>
+        </div>
+        <div class="modal-body">
+          <CreateFolderModal 
+            :existingFolders="folders" 
+            @created="handleFolderCreated" 
+            @cancel="showCreateFolderModal = false" 
+          />
+        </div>
+      </div>
+    </div>
+
+    <!-- Folder Upload Modal -->
+    <FolderUploadModal 
+      v-model="showFolderUploadModal"
+      @upload-complete="handleFolderUploaded"
+      @switch-to-file-upload="handleSwitchToFileUpload"
+    />
   </div>
 </template>
 
 <script>
 import { ref, onMounted, inject } from 'vue'
+import FolderTreeUpload from '../components/FolderTreeUpload.vue'
+import FolderManager from '../components/FolderManager.vue'
+import CreateFolderModal from '../components/CreateFolderModal.vue'
+import FolderUploadModal from '../components/FolderUploadModal.vue'
 
 export default {
   name: 'AdminView',
+  components: {
+    FolderTreeUpload,
+    FolderManager,
+    CreateFolderModal,
+    FolderUploadModal
+  },
   setup() {
     const authHeader = inject('authHeader')
     const stats = ref({})
     const loading = ref(false)
     const showUploadModal = ref(false)
+    const showFolderUploadModal = ref(false)
     const showCreateFolderModal = ref(false)
+    const folders = ref([])
+    const folderManager = ref(null)
 
     const loadStats = async () => {
       loading.value = true
@@ -161,18 +226,73 @@ export default {
       return iconMap[type] || 'pi pi-file'
     }
 
+    const loadFolders = async () => {
+      try {
+        const response = await fetch('/api/folders', {
+          headers: {
+            'Authorization': authHeader.value
+          }
+        })
+        const data = await response.json()
+        if (data.success) {
+          folders.value = data.folders
+        }
+      } catch (error) {
+        console.error('Error loading folders:', error)
+      }
+    }
+
+    const handleUploaded = () => {
+      showUploadModal.value = false
+      loadStats()
+      loadFolders()
+    }
+
+    const handleFolderCreated = (folder) => {
+      showCreateFolderModal.value = false
+      loadStats()
+      loadFolders()
+      folderManager.value?.loadFolders()
+    }
+
+    const handleFoldersChanged = () => {
+      loadStats()
+      loadFolders()
+    }
+
+    const handleFolderUploaded = (data) => {
+      showFolderUploadModal.value = false
+      loadStats()
+      loadFolders()
+      folderManager.value?.loadFolders()
+    }
+
+    const handleSwitchToFileUpload = () => {
+      showFolderUploadModal.value = false
+      showUploadModal.value = true
+    }
+
     onMounted(() => {
       loadStats()
+      loadFolders()
     })
 
     return {
       stats,
       loading,
       showUploadModal,
+      showFolderUploadModal,
       showCreateFolderModal,
+      folders,
+      folderManager,
       refreshStats,
       formatDate,
-      getFileTypeIcon
+      getFileTypeIcon,
+      handleUploaded,
+      handleFolderCreated,
+      handleFoldersChanged,
+      handleFolderUploaded,
+      handleSwitchToFileUpload
     }
   }
 }
@@ -343,7 +463,7 @@ export default {
 
 .actions-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: 20px;
 }
 
@@ -428,5 +548,72 @@ export default {
     width: 100%;
     justify-content: center;
   }
+}
+
+/* Modal Styles */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 20px;
+}
+
+.modal-content {
+  background-color: #fff;
+  border-radius: 8px;
+  width: 100%;
+  max-width: 800px;
+  max-height: 90vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.modal-header {
+  padding: 20px;
+  border-bottom: 1px solid #e0e6ed;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.modal-header h2 {
+  margin: 0;
+  font-size: 20px;
+  color: #333;
+}
+
+.modal-close {
+  background: none;
+  border: none;
+  font-size: 20px;
+  color: #666;
+  cursor: pointer;
+  padding: 5px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.modal-close:hover {
+  color: #333;
+}
+
+.modal-body {
+  padding: 20px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+/* Folder Management Section */
+.folder-management-section {
+  padding: 0 30px 30px;
 }
 </style>
