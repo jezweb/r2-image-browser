@@ -1155,9 +1155,22 @@ const formatDate = (dateString) => {
 .item-name {
   font-weight: 500;
   color: #333;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  hyphens: auto;
+  white-space: normal;
+  line-height: 1.3;
+}
+
+.view-grid .item-name {
+  max-height: 3.9em;
   overflow: hidden;
-  text-overflow: ellipsis;
+}
+
+.view-list .item-name {
   white-space: nowrap;
+  text-overflow: ellipsis;
+  overflow: hidden;
 }
 
 .item-meta {
