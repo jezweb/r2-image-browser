@@ -6,16 +6,16 @@ echo "This script will set up the following secrets:"
 echo "- BASIC_USER (username for basic auth)"
 echo "- BASIC_PASS (password for basic auth)"
 echo ""
-echo "Current values from .env.example:"
+echo "Current values:"
 echo "- BASIC_USER: jezweb"
-echo "- BASIC_PASS: iconbrowser"
+echo "- BASIC_PASS: Footwork-Ahoy-Unbundle8"
 echo ""
 echo "Press Enter to use these values or Ctrl+C to cancel..."
 read
 
 # Set the secrets
 echo "jezweb" | wrangler secret put BASIC_USER
-echo "iconbrowser" | wrangler secret put BASIC_PASS
+echo "Footwork-Ahoy-Unbundle8" | wrangler secret put BASIC_PASS
 
 echo ""
 echo "Secrets have been configured!"

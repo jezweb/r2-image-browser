@@ -108,6 +108,8 @@
 
     <!-- Folder Management -->
     <div class="folder-management-section">
+      <h2>Folder Management</h2>
+      <p class="section-description">Organize your images with folders. Rename, move, or delete folders as needed.</p>
       <FolderManager @foldersChanged="handleFoldersChanged" ref="folderManager" />
     </div>
 
@@ -614,6 +616,23 @@ export default {
 
 /* Folder Management Section */
 .folder-management-section {
-  padding: 0 30px 30px;
+  padding: 40px 30px;
+  background: #f8f9fa;
+  border-top: 1px solid #e0e6ed;
+  margin-top: 40px;
+}
+
+.folder-management-section h2 {
+  margin: 0 0 10px 0;
+  color: #333;
+  font-size: 24px;
+  font-weight: 600;
+}
+
+.section-description {
+  color: #666;
+  margin: 0 0 30px 0;
+  font-size: 16px;
+  line-height: 1.5;
 }
 </style>

@@ -1,7 +1,10 @@
 <template>
   <div class="folder-manager">
     <div class="manager-header">
-      <h3>Folder Management</h3>
+      <div class="header-content">
+        <i class="pi pi-folder" style="font-size: 1.5rem; color: var(--primary-color);"></i>
+        <span class="folders-count">{{ foldersWithStats.length }} folders</span>
+      </div>
       <button @click="loadFolders" class="refresh-btn">
         <i class="pi pi-refresh"></i>
         Refresh
@@ -69,6 +72,13 @@
             >
               <i class="pi pi-trash"></i>
             </button>
+            <button
+              @click="startMove(folder)"
+              class="action-btn move"
+              title="Move folder"
+            >
+              <i class="pi pi-folder-open"></i>
+            </button>
             <router-link
               :to="`/?folder=${encodeURIComponent(folder.name)}`"
               class="action-btn view"
@@ -77,6 +87,61 @@
               <i class="pi pi-eye"></i>
             </router-link>
           </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Move Folder Dialog -->
+    <div v-if="moveDialogVisible" class="modal-overlay" @click.self="cancelMove">
+      <div class="move-dialog">
+        <div class="dialog-header">
+          <h3>Move Folder</h3>
+          <button @click="cancelMove" class="close-btn">
+            <i class="pi pi-times"></i>
+          </button>
+        </div>
+        <div class="dialog-body">
+          <p><strong>Moving: {{ folderToMove?.name }}</strong></p>
+          <div class="move-options">
+            <label>Move to:</label>
+            <div class="radio-group">
+              <div class="radio-option">
+                <input
+                  type="radio"
+                  id="move-root"
+                  value=""
+                  v-model="moveTargetPath"
+                  name="moveTarget"
+                >
+                <label for="move-root">
+                  <i class="pi pi-home"></i>
+                  Root (Top Level)
+                </label>
+              </div>
+              <div v-for="folder in availableTargets" :key="folder.name" class="radio-option">
+                <input
+                  type="radio"
+                  :id="`move-${folder.name}`"
+                  :value="folder.name"
+                  v-model="moveTargetPath"
+                  name="moveTarget"
+                >
+                <label :for="`move-${folder.name}`">
+                  <i class="pi pi-folder"></i>
+                  {{ folder.name }}
+                </label>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="dialog-actions">
+          <button @click="cancelMove" class="btn btn-secondary">
+            Cancel
+          </button>
+          <button @click="executeMove" :disabled="isMoving" class="btn btn-primary">
+            <i :class="isMoving ? 'pi pi-spin pi-spinner' : 'pi pi-arrow-right'"></i>
+            {{ isMoving ? 'Moving...' : 'Move Folder' }}
+          </button>
         </div>
       </div>
     </div>
@@ -132,6 +197,13 @@ const deleteDialogVisible = ref(false);
 const folderToDelete = ref(null);
 const isDeleting = ref(false);
 
+// Move dialog state
+const moveDialogVisible = ref(false);
+const folderToMove = ref(null);
+const moveTargetPath = ref('');
+const isMoving = ref(false);
+const availableTargets = ref([]);
+
 const formatSize = (bytes) => {
   if (bytes === 0) return '0 B';
   const k = 1024;
@@ -146,13 +218,13 @@ const loadFolders = async () => {
     // Load folder list
     const foldersResponse = await fetch('/api/folders', {
       headers: {
-        'Authorization': authHeader
+        'Authorization': authHeader.value
       }
     });
     const foldersData = await foldersResponse.json();
     
-    if (foldersData.success) {
-      folders.value = foldersData.folders;
+    if (foldersData.success && foldersData.data) {
+      folders.value = foldersData.data.folders || [];
       
       // Get stats for each folder
       const folderStats = await Promise.all(
@@ -160,7 +232,7 @@ const loadFolders = async () => {
           try {
             const imagesResponse = await fetch(`/api/images?folder=${encodeURIComponent(folder.name)}`, {
               headers: {
-                'Authorization': authHeader
+                'Authorization': authHeader.value
               }
             });
             const imagesData = await imagesResponse.json();
@@ -214,7 +286,7 @@ const saveRename = async (oldName) => {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': authHeader
+        'Authorization': authHeader.value
       },
       body: JSON.stringify({
         name: editName.value.trim()
@@ -255,7 +327,7 @@ const executeDelete = async () => {
     const response = await fetch(`/api/admin/folders/${encodeURIComponent(folderToDelete.value.name)}`, {
       method: 'DELETE',
       headers: {
-        'Authorization': authHeader
+        'Authorization': authHeader.value
       }
     });
     
@@ -275,6 +347,56 @@ const executeDelete = async () => {
   }
 };
 
+const startMove = (folder) => {
+  folderToMove.value = folder;
+  moveTargetPath.value = '';
+  // Get available targets (all folders except the one being moved and its children)
+  availableTargets.value = folders.value.filter(f => 
+    f.name !== folder.name && !f.name.startsWith(folder.name + '/')
+  );
+  moveDialogVisible.value = true;
+};
+
+const cancelMove = () => {
+  moveDialogVisible.value = false;
+  folderToMove.value = null;
+  moveTargetPath.value = '';
+};
+
+const executeMove = async () => {
+  if (!folderToMove.value) return;
+  
+  isMoving.value = true;
+  
+  try {
+    const response = await fetch('/api/admin/folders/move', {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': authHeader.value
+      },
+      body: JSON.stringify({
+        source: folderToMove.value.name,
+        target: moveTargetPath.value
+      })
+    });
+    
+    const result = await response.json();
+    
+    if (result.success) {
+      await loadFolders();
+      emit('foldersChanged');
+    } else {
+      alert('Error moving folder: ' + (result.error || 'Unknown error'));
+    }
+  } catch (error) {
+    alert('Network error: ' + error.message);
+  } finally {
+    isMoving.value = false;
+    cancelMove();
+  }
+};
+
 onMounted(() => {
   loadFolders();
 });
@@ -287,20 +409,30 @@ defineExpose({
 <style scoped>
 .folder-manager {
   background: white;
-  border-radius: 8px;
+  border-radius: 12px;
   overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  border: 1px solid #e0e6ed;
 }
 
 .manager-header {
-  padding: 1.5rem;
+  padding: 2rem;
   border-bottom: 1px solid #e0e6ed;
   display: flex;
   justify-content: space-between;
   align-items: center;
+  background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
 }
 
-.manager-header h3 {
-  margin: 0;
+.header-content {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.folders-count {
+  font-size: 1.25rem;
+  font-weight: 600;
   color: #333;
 }
 
@@ -345,26 +477,32 @@ defineExpose({
 
 .table-header {
   display: grid;
-  grid-template-columns: 1fr auto auto auto;
+  grid-template-columns: 1fr 100px 120px 140px;
   gap: 1rem;
-  padding: 1rem 1.5rem;
-  background: #f8f9fa;
-  border-bottom: 1px solid #e0e6ed;
+  padding: 1.25rem 2rem;
+  background: linear-gradient(to bottom, #f8f9fa, #f0f1f3);
+  border-bottom: 2px solid #e0e6ed;
   font-weight: 600;
-  color: #333;
+  color: #495057;
+  font-size: 0.875rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
 .table-row {
   display: grid;
-  grid-template-columns: 1fr auto auto auto;
+  grid-template-columns: 1fr 100px 120px 140px;
   gap: 1rem;
-  padding: 1rem 1.5rem;
+  padding: 1.25rem 2rem;
   border-bottom: 1px solid #f0f0f0;
   align-items: center;
+  transition: all 0.2s ease;
 }
 
 .table-row:hover {
   background: #f8f9fa;
+  transform: translateX(4px);
+  box-shadow: inset 4px 0 0 #007bff;
 }
 
 .header-cell.name,
@@ -459,6 +597,15 @@ defineExpose({
 
 .action-btn.delete:hover {
   background: #c82333;
+}
+
+.action-btn.move {
+  background: #17a2b8;
+  color: white;
+}
+
+.action-btn.move:hover {
+  background: #138496;
 }
 
 .action-btn.view {
@@ -584,6 +731,79 @@ defineExpose({
 
 .btn-danger:hover:not(:disabled) {
   background: #c82333;
+}
+
+.btn-primary {
+  background: #007bff;
+  color: white;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: #0069d9;
+}
+
+/* Move Dialog */
+.move-dialog {
+  background: white;
+  border-radius: 8px;
+  width: 100%;
+  max-width: 500px;
+  overflow: hidden;
+}
+
+.move-options {
+  margin-top: 1rem;
+}
+
+.move-options label {
+  display: block;
+  margin-bottom: 0.75rem;
+  font-weight: 600;
+  color: #333;
+}
+
+.radio-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  max-height: 300px;
+  overflow-y: auto;
+  padding: 0.5rem;
+  border: 1px solid #e0e6ed;
+  border-radius: 4px;
+  background: #f8f9fa;
+}
+
+.radio-option {
+  display: flex;
+  align-items: center;
+}
+
+.radio-option input[type="radio"] {
+  margin-right: 0.5rem;
+}
+
+.radio-option label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0.5rem;
+  cursor: pointer;
+  font-weight: normal;
+  flex: 1;
+  border-radius: 4px;
+  transition: background-color 0.2s;
+}
+
+.radio-option label:hover {
+  background: #e9ecef;
+}
+
+.radio-option input[type="radio"]:checked + label {
+  background: #007bff20;
+  color: #007bff;
+  font-weight: 500;
 }
 
 /* Responsive */
