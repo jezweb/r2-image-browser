@@ -536,17 +536,31 @@ watch(visible, (newVal) => {
 
 <style scoped>
 .folder-upload-modal :deep(.p-dialog-content) {
-  padding: 1.5rem;
+  padding: 2rem;
+}
+
+.folder-upload-modal :deep(.p-dialog-header) {
+  padding: 1.5rem 2rem 1rem 2rem;
+}
+
+.instructions-section {
+  margin-bottom: 1.5rem;
+}
+
+.instructions-section p {
+  margin: 0;
+  line-height: 1.5;
 }
 
 .folder-drop-zone {
   border: 2px dashed var(--surface-border);
-  border-radius: 6px;
-  padding: 2rem;
+  border-radius: 8px;
+  padding: 3rem 2rem;
   text-align: center;
   cursor: pointer;
   transition: all 0.2s ease;
   background-color: var(--surface-50);
+  margin-bottom: 1.5rem;
 }
 
 .folder-drop-zone:hover {
@@ -564,8 +578,19 @@ watch(visible, (newVal) => {
   pointer-events: none;
 }
 
+.drop-zone-content h4 {
+  margin: 1rem 0 0.5rem 0;
+  font-size: 1.2rem;
+  font-weight: 600;
+}
+
+.drop-zone-content p {
+  margin: 0 0 1.5rem 0;
+  line-height: 1.4;
+}
+
 .folder-preview {
-  margin-top: 0;
+  margin-top: 1rem;
 }
 
 .preview-header {
@@ -596,12 +621,13 @@ watch(visible, (newVal) => {
 }
 
 .upload-options-card {
-  margin-top: 1rem !important;
+  margin-top: 1.5rem !important;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  background-color: var(--surface-50);
 }
 
 .upload-options-card :deep(.p-card-content) {
-  padding: 1rem;
+  padding: 1.5rem;
 }
 
 :deep(.p-tree) {
@@ -644,8 +670,21 @@ watch(visible, (newVal) => {
     margin: 0.5rem;
   }
   
+  .folder-upload-modal :deep(.p-dialog-content) {
+    padding: 1.5rem;
+  }
+  
+  .folder-upload-modal :deep(.p-dialog-header) {
+    padding: 1rem 1.5rem 0.5rem 1.5rem;
+  }
+  
   .folder-drop-zone {
     padding: 2rem 1rem;
+    margin-bottom: 1rem;
+  }
+  
+  .upload-options-card :deep(.p-card-content) {
+    padding: 1rem;
   }
 }
 </style>
