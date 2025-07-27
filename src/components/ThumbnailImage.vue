@@ -1,22 +1,22 @@
 <template>
-  <div class="thumbnail-image-container">
+  <div ref="containerRef" class="thumbnail-image-container">
     <!-- Loading placeholder -->
-    <div v-if="isLoading" class="thumbnail-loading">
+    <div v-if="isLoading && !hasError" class="thumbnail-loading">
       <i class="pi pi-spin pi-spinner"></i>
     </div>
     
     <!-- Error state -->
-    <div v-else-if="hasError" class="thumbnail-error">
+    <div v-if="hasError" class="thumbnail-error">
       <i class="pi pi-exclamation-triangle"></i>
     </div>
     
-    <!-- Actual image -->
+    <!-- Actual image - always render but conditionally load -->
     <img 
-      v-else
       ref="imageRef"
-      :src="src"
+      :src="shouldLoadImage ? src : ''"
       :alt="alt"
       class="thumbnail-image"
+      :class="{ 'image-loading': isLoading, 'image-loaded': !isLoading && !hasError }"
       @load="onLoad"
       @error="onError"
       loading="lazy"
@@ -25,7 +25,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted } from 'vue';
+import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue';
 
 const props = defineProps({
   src: {
@@ -42,13 +42,14 @@ const props = defineProps({
   },
   lazyLoad: {
     type: Boolean,
-    default: true
+    default: false // Disabled by default for immediate loading
   }
 });
 
 const emit = defineEmits(['load', 'error']);
 
 // Reactive state
+const containerRef = ref(null);
 const imageRef = ref(null);
 const isLoading = ref(true);
 const hasError = ref(false);
@@ -56,6 +57,12 @@ const isIntersecting = ref(false);
 
 // Intersection Observer for lazy loading
 let observer = null;
+let fallbackTimeout = null;
+
+// Computed properties
+const shouldLoadImage = computed(() => {
+  return !props.lazyLoad || isIntersecting.value;
+});
 
 // Methods
 const onLoad = () => {
@@ -76,11 +83,24 @@ const setupIntersectionObserver = () => {
     return;
   }
 
+  // Fallback timeout in case intersection observer fails
+  fallbackTimeout = setTimeout(() => {
+    if (!isIntersecting.value) {
+      isIntersecting.value = true;
+      if (observer) {
+        observer.disconnect();
+      }
+    }
+  }, 2000); // 2 second fallback
+
   observer = new IntersectionObserver(
     (entries) => {
       entries.forEach((entry) => {
         if (entry.isIntersecting) {
           isIntersecting.value = true;
+          if (fallbackTimeout) {
+            clearTimeout(fallbackTimeout);
+          }
           observer?.disconnect();
         }
       });
@@ -91,13 +111,16 @@ const setupIntersectionObserver = () => {
     }
   );
 
-  if (imageRef.value) {
-    observer.observe(imageRef.value);
+  // Observe the container instead of the image
+  if (containerRef.value) {
+    observer.observe(containerRef.value);
   }
 };
 
 // Lifecycle
-onMounted(() => {
+onMounted(async () => {
+  await nextTick(); // Ensure DOM is ready
+  
   if (props.lazyLoad) {
     setupIntersectionObserver();
   } else {
@@ -108,6 +131,9 @@ onMounted(() => {
 onUnmounted(() => {
   if (observer) {
     observer.disconnect();
+  }
+  if (fallbackTimeout) {
+    clearTimeout(fallbackTimeout);
   }
 });
 </script>
@@ -129,6 +155,14 @@ onUnmounted(() => {
   object-fit: cover;
   display: block;
   transition: opacity 0.2s ease;
+}
+
+.thumbnail-image.image-loading {
+  opacity: 0.3;
+}
+
+.thumbnail-image.image-loaded {
+  opacity: 1;
 }
 
 .thumbnail-loading,
