@@ -243,15 +243,6 @@
                     {{ folder.fileCount }} items
                   </span>
                 </div>
-                <div class="item-actions">
-                  <button 
-                    @click.stop="showFolderMenu(folder, $event)"
-                    class="action-btn"
-                    :aria-label="`Options for ${folder.name}`"
-                  >
-                    <i class="pi pi-ellipsis-v"></i>
-                  </button>
-                </div>
               </div>
             </div>
           </div>
@@ -293,15 +284,6 @@
                     </span>
                   </div>
                 </div>
-                <div class="item-actions">
-                  <button 
-                    @click.stop="copyFileUrl(file)"
-                    class="action-btn"
-                    title="Copy URL"
-                  >
-                    <i class="pi pi-copy"></i>
-                  </button>
-                </div>
               </div>
             </div>
           </div>
@@ -318,33 +300,6 @@
           </div>
         </div>
       </div>
-    </div>
-    
-    <!-- Context Menu -->
-    <div 
-      v-if="contextMenu.show"
-      ref="contextMenu"
-      class="context-menu"
-      :style="{ top: contextMenu.y + 'px', left: contextMenu.x + 'px' }"
-      @click.stop
-    >
-      <button @click="createSubfolder" class="menu-item">
-        <i class="pi pi-plus"></i>
-        Create Subfolder
-      </button>
-      <button @click="renameFolder" class="menu-item">
-        <i class="pi pi-pencil"></i>
-        Rename
-      </button>
-      <button @click="moveFolder" class="menu-item">
-        <i class="pi pi-arrows-alt"></i>
-        Move
-      </button>
-      <div class="menu-separator"></div>
-      <button @click="deleteFolder" class="menu-item danger">
-        <i class="pi pi-trash"></i>
-        Delete
-      </button>
     </div>
   </div>
 </template>
@@ -387,13 +342,6 @@ const folderTree = ref([]);
 const isLoadingTree = ref(false);
 const expandedFolders = ref(new Set(['']));
 
-// Context menu state
-const contextMenu = ref({
-  show: false,
-  x: 0,
-  y: 0,
-  folder: null
-});
 
 // Computed properties
 const pathSegments = computed(() => {
@@ -463,13 +411,10 @@ onMounted(() => {
   if (showTreeView.value) {
     loadFolderTree();
   }
-  
-  // Global click handler for context menu
-  document.addEventListener('click', hideContextMenu);
 });
 
 onUnmounted(() => {
-  document.removeEventListener('click', hideContextMenu);
+  // Cleanup if needed
 });
 
 // Watch for path changes
@@ -613,15 +558,6 @@ const selectFile = (file) => {
   emit('file-selected', file);
 };
 
-const copyFileUrl = async (file) => {
-  try {
-    await navigator.clipboard.writeText(file.url);
-    // Could show toast notification
-    console.log('URL copied to clipboard');
-  } catch (err) {
-    console.error('Failed to copy URL:', err);
-  }
-};
 
 const isImageFile = (filename) => {
   const imageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.svg', '.webp'];
@@ -632,39 +568,7 @@ const handleImageError = (event) => {
   event.target.style.display = 'none';
 };
 
-// Context menu methods
-const showFolderMenu = (folder, event) => {
-  contextMenu.value = {
-    show: true,
-    x: event.clientX,
-    y: event.clientY,
-    folder
-  };
-};
 
-const hideContextMenu = () => {
-  contextMenu.value.show = false;
-};
-
-const createSubfolder = () => {
-  emit('folder-action', { action: 'create', folder: contextMenu.value.folder });
-  hideContextMenu();
-};
-
-const renameFolder = () => {
-  emit('folder-action', { action: 'rename', folder: contextMenu.value.folder });
-  hideContextMenu();
-};
-
-const moveFolder = () => {
-  emit('folder-action', { action: 'move', folder: contextMenu.value.folder });
-  hideContextMenu();
-};
-
-const deleteFolder = () => {
-  emit('folder-action', { action: 'delete', folder: contextMenu.value.folder });
-  hideContextMenu();
-};
 
 const showUploadDialog = () => {
   emit('upload-request', currentPath.value);
@@ -1224,73 +1128,7 @@ const formatDate = (dateString) => {
   justify-content: center;
 }
 
-.item-actions {
-  flex-shrink: 0;
-}
 
-.action-btn {
-  background: none;
-  border: none;
-  padding: 0.5rem;
-  cursor: pointer;
-  color: #6c757d;
-  border-radius: 4px;
-  opacity: 0;
-  transition: all 0.2s;
-}
-
-.folder-item:hover .action-btn,
-.file-item:hover .action-btn {
-  opacity: 1;
-}
-
-.action-btn:hover {
-  background: #e9ecef;
-  color: #333;
-}
-
-.context-menu {
-  position: fixed;
-  background: white;
-  border: 1px solid #ddd;
-  border-radius: 6px;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-  z-index: 1000;
-  min-width: 150px;
-  overflow: hidden;
-}
-
-.menu-item {
-  width: 100%;
-  padding: 0.75rem 1rem;
-  background: none;
-  border: none;
-  text-align: left;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  color: #333;
-  font-size: 0.875rem;
-}
-
-.menu-item:hover {
-  background: #f8f9fa;
-}
-
-.menu-item.danger {
-  color: #dc3545;
-}
-
-.menu-item.danger:hover {
-  background: #f8d7da;
-}
-
-.menu-separator {
-  height: 1px;
-  background: #e9ecef;
-  margin: 0.25rem 0;
-}
 
 /* Responsive */
 @media (max-width: 768px) {
