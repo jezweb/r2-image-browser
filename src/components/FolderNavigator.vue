@@ -357,7 +357,7 @@ const isLoading = ref(false);
 const error = ref(null);
 
 // View state
-const showTreeView = ref(false);
+const showTreeView = ref(true);
 const showPathInput = ref(false);
 const pathInputValue = ref('');
 const viewMode = ref('grid');
