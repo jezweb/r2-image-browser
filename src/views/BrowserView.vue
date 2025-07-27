@@ -59,7 +59,7 @@ export default {
 
     const loadFolders = async () => {
       try {
-        const response = await fetch('/api/folders', {
+        const response = await fetch('/api/folders?path=&include_files=true&depth=1', {
           headers: {
             'Authorization': authHeader.value
           }
@@ -72,8 +72,8 @@ export default {
         
         const data = await response.json()
         if (data.success) {
-          folders.value = data.folders
-          images.value = []
+          folders.value = data.data.folders || []
+          images.value = data.data.files || []
         }
       } catch (error) {
         console.error('Error loading folders:', error)
