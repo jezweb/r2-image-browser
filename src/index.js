@@ -240,8 +240,8 @@ export default {
     // Serve static assets (Vue app)
     // For client-side routing, serve index.html for non-asset requests
     if (!url.pathname.includes('.') && url.pathname !== '/') {
-      const indexRequest = new Request(new URL('/', request.url), request);
-      return env.ASSETS.fetch(indexRequest);
+      // Fetch index.html directly
+      return env.ASSETS.fetch('/index.html');
     }
     
     return env.ASSETS.fetch(request);
