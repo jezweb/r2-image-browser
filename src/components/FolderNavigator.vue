@@ -36,6 +36,14 @@
       <!-- Navigation Controls -->
       <div class="nav-controls">
         <button 
+          @click="navigateToHome"
+          class="nav-btn home-btn"
+          title="Go to home"
+        >
+          <i class="pi pi-home"></i>
+        </button>
+        
+        <button 
           @click="goBack"
           :disabled="!canGoBack"
           class="nav-btn back-btn"
@@ -501,6 +509,10 @@ const goForward = () => {
     historyIndex.value++;
     currentPath.value = navigationHistory.value[historyIndex.value];
   }
+};
+
+const navigateToHome = () => {
+  navigateToPath('');
 };
 
 const navigateToInputPath = () => {

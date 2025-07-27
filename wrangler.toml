@@ -4,6 +4,11 @@ compatibility_date = "2025-01-26"
 assets = { directory = "./dist" }
 account_id = "0460574641fdbb98159c98ebf593e2bd"
 
+# Custom domain route
+routes = [
+  { pattern = "iconbrowser.jezweb.com/*", zone_name = "jezweb.com" }
+]
+
 # R2 bucket binding
 [[r2_buckets]]
 binding = "IMAGE_BUCKET"
