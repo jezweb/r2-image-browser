@@ -59,26 +59,21 @@ export default {
 
     const loadFolders = async () => {
       try {
-        console.log('Loading folders with auth:', authHeader.value)
         const response = await fetch('/api/folders?path=&include_files=true&depth=1', {
           headers: {
             'Authorization': authHeader.value
           }
         })
         
-        console.log('Response status:', response.status)
         if (response.status === 401) {
           handleAuthError()
           return
         }
         
         const data = await response.json()
-        console.log('API response:', data)
         if (data.success) {
           folders.value = data.data.folders || []
           images.value = data.data.files || []
-          console.log('Folders loaded:', folders.value)
-          console.log('Files loaded:', images.value)
         }
       } catch (error) {
         console.error('Error loading folders:', error)

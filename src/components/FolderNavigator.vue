@@ -518,7 +518,7 @@ const loadFolderContents = async (path) => {
     
     const response = await fetch(`/api/folders?${params}`, {
       headers: {
-        'Authorization': authHeader
+        'Authorization': authHeader.value
       }
     });
     
@@ -545,7 +545,7 @@ const loadFolderTree = async () => {
   try {
     const response = await fetch('/api/folders?depth=3', {
       headers: {
-        'Authorization': authHeader
+        'Authorization': authHeader.value
       }
     });
     
