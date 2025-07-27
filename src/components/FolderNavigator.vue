@@ -160,6 +160,8 @@
                 @click="setViewMode('list')"
                 :class="['view-btn', { active: viewMode === 'list' }]"
                 title="List view"
+              >
+                <i class="pi pi-list"></i>
               </button>
             </div>
             
