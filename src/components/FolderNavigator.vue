@@ -220,7 +220,14 @@
                 :aria-label="`Open ${folder.name} folder`"
               >
                 <div class="item-icon">
-                  <i class="pi pi-folder folder-icon"></i>
+                  <FolderThumbnailGrid
+                    v-if="folder.previewImages && folder.previewImages.length > 0"
+                    :preview-images="folder.previewImages"
+                    :folder-name="folder.name"
+                    :size="viewMode === 'list' ? 'small' : 'medium'"
+                    :loading="isLoading"
+                  />
+                  <i v-else class="pi pi-folder folder-icon"></i>
                 </div>
                 <div class="item-info">
                   <span class="item-name">{{ folder.name }}</span>
@@ -337,6 +344,7 @@
 <script setup>
 import { ref, computed, watch, onMounted, onUnmounted, inject } from 'vue';
 import FolderTreeView from './FolderTreeView.vue';
+import FolderThumbnailGrid from './FolderThumbnailGrid.vue';
 
 const props = defineProps({
   initialPath: {
@@ -515,6 +523,8 @@ const loadFolderContents = async (path) => {
     const params = new URLSearchParams({
       path: path || '',
       include_files: 'true',
+      include_previews: 'true',
+      preview_count: '4',
       depth: '1'
     });
     
@@ -1122,12 +1132,28 @@ const formatDate = (dateString) => {
 
 .item-icon {
   flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.view-grid .item-icon {
+  margin-bottom: 0.5rem;
+}
+
+.view-list .item-icon {
+  margin-right: 0.75rem;
 }
 
 .folder-icon,
 .file-icon {
   font-size: 2rem;
   color: #007bff;
+}
+
+.view-list .folder-icon,
+.view-list .file-icon {
+  font-size: 1.5rem;
 }
 
 .file-thumbnail {
