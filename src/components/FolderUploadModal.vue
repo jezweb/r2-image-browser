@@ -3,16 +3,14 @@
     v-model:visible="visible" 
     modal 
     header="📁 Upload Folder" 
-    :style="{ width: '600px', maxWidth: '90vw' }"
+    :style="{ width: '650px', maxWidth: '90vw' }"
     :dismissableMask="false"
     class="folder-upload-modal">
     
     <!-- Clear Instructions -->
-    <div class="instructions-section mb-4">
-      <h3 class="text-xl font-semibold mb-2">Upload an Entire Folder</h3>
-      <p class="text-gray-600">
+    <div class="instructions-section mb-3">
+      <p class="text-gray-600 text-sm">
         Upload all files and subfolders at once while preserving your folder structure.
-        Perfect for organizing multiple images into categories.
       </p>
     </div>
 
@@ -60,24 +58,31 @@
         style="display: none;" />
       
       <div class="drop-zone-content">
-        <i class="pi pi-folder-open" style="font-size: 4rem; color: var(--primary-color);"></i>
-        <h4 class="mt-3 mb-2">{{ isDragging ? 'Drop your folder here' : 'Select or Drop a Folder' }}</h4>
-        <p class="text-gray-600 mb-3">
+        <i class="pi pi-folder-open" style="font-size: 3rem; color: var(--primary-color);"></i>
+        <h4 class="mt-2 mb-1">{{ isDragging ? 'Drop your folder here' : 'Select or Drop a Folder' }}</h4>
+        <p class="text-gray-600 text-sm mb-3">
           {{ isDragging ? 'Release to upload this folder' : 'Click to browse or drag & drop a folder here' }}
         </p>
         <Button 
           v-if="!isDragging"
           label="Select Folder" 
           icon="pi pi-folder" 
-          severity="primary" />
+          severity="primary"
+          size="small" />
       </div>
     </div>
 
+    <!-- Divider -->
+    <Divider v-if="folderPreview && folderPreview.length > 0" />
+    
     <!-- Folder Structure Preview -->
-    <div v-if="folderPreview && folderPreview.length > 0" class="folder-preview mt-4">
+    <div v-if="folderPreview && folderPreview.length > 0" class="folder-preview">
       <div class="preview-header flex justify-content-between align-items-center mb-2">
-        <h4 class="m-0">📋 Preview</h4>
-        <Tag :value="`${totalFiles} files`" severity="info" />
+        <div class="flex align-items-center gap-2">
+          <i class="pi pi-eye text-gray-600"></i>
+          <span class="font-semibold">Preview</span>
+        </div>
+        <Tag :value="`${totalFiles} files`" severity="info" size="small" />
       </div>
       
       <div class="preview-tree">
@@ -88,49 +93,61 @@
           @node-collapse="onNodeCollapse"
           class="folder-tree">
           <template #default="slotProps">
-            <span class="tree-node-content">
-              <i :class="getNodeIcon(slotProps.node)" class="mr-2"></i>
-              <span>{{ slotProps.node.label }}</span>
+            <div class="tree-node-content">
+              <span class="node-label">
+                <i :class="getNodeIcon(slotProps.node)" class="mr-1 text-primary"></i>
+                {{ slotProps.node.label }}
+              </span>
               <Tag 
                 v-if="slotProps.node.data && slotProps.node.data.fileCount > 0" 
                 :value="slotProps.node.data.fileCount" 
                 severity="secondary" 
-                class="ml-2" 
                 size="small" />
-            </span>
+            </div>
           </template>
         </Tree>
       </div>
 
       <!-- Upload Options -->
-      <div class="upload-options mt-3">
-        <div class="field">
-          <label class="font-semibold">Upload to:</label>
-          <div class="flex align-items-center mt-2">
-            <RadioButton v-model="uploadLocation" inputId="root" value="root" />
-            <label for="root" class="ml-2">Root folder</label>
+      <Card class="upload-options-card mt-3">
+        <template #content>
+          <div class="grid">
+            <div class="col-12 md:col-6">
+              <div class="field">
+                <label class="text-sm font-semibold text-gray-700 mb-2 block">Upload to:</label>
+                <div class="flex flex-column gap-2">
+                  <div class="flex align-items-center">
+                    <RadioButton v-model="uploadLocation" inputId="root" value="root" />
+                    <label for="root" class="ml-2 cursor-pointer">Root folder</label>
+                  </div>
+                  <div class="flex align-items-center">
+                    <RadioButton v-model="uploadLocation" inputId="custom" value="custom" />
+                    <label for="custom" class="ml-2 cursor-pointer">Custom folder</label>
+                  </div>
+                  <InputText 
+                    v-model="customPath" 
+                    :disabled="uploadLocation !== 'custom'"
+                    placeholder="e.g., categories/2024"
+                    class="ml-4"
+                    size="small" />
+                </div>
+              </div>
+            </div>
+            <div class="col-12 md:col-6">
+              <div class="field">
+                <label class="text-sm font-semibold text-gray-700 mb-2 block">If files already exist:</label>
+                <Dropdown 
+                  v-model="conflictResolution" 
+                  :options="conflictOptions" 
+                  optionLabel="label" 
+                  optionValue="value"
+                  class="w-full"
+                  size="small" />
+              </div>
+            </div>
           </div>
-          <div class="flex align-items-center mt-2">
-            <RadioButton v-model="uploadLocation" inputId="custom" value="custom" />
-            <label for="custom" class="ml-2">Custom folder:</label>
-            <InputText 
-              v-model="customPath" 
-              :disabled="uploadLocation !== 'custom'"
-              placeholder="e.g., categories/2024"
-              class="ml-2 flex-1" />
-          </div>
-        </div>
-
-        <div class="field mt-3">
-          <label class="font-semibold">If files already exist:</label>
-          <Dropdown 
-            v-model="conflictResolution" 
-            :options="conflictOptions" 
-            optionLabel="label" 
-            optionValue="value"
-            class="w-full mt-2" />
-        </div>
-      </div>
+        </template>
+      </Card>
     </div>
 
     <!-- Upload Progress -->
@@ -190,6 +207,8 @@ import RadioButton from 'primevue/radiobutton'
 import InputText from 'primevue/inputtext'
 import Dropdown from 'primevue/dropdown'
 import ProgressBar from 'primevue/progressbar'
+import Divider from 'primevue/divider'
+import Card from 'primevue/card'
 import { useToast } from 'primevue/usetoast'
 
 const props = defineProps({
@@ -522,11 +541,11 @@ watch(visible, (newVal) => {
 
 .folder-drop-zone {
   border: 2px dashed var(--surface-border);
-  border-radius: 8px;
-  padding: 3rem 2rem;
+  border-radius: 6px;
+  padding: 2rem;
   text-align: center;
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: all 0.2s ease;
   background-color: var(--surface-50);
 }
 
@@ -538,7 +557,7 @@ watch(visible, (newVal) => {
 .folder-drop-zone.drag-over {
   border-color: var(--primary-color);
   background-color: var(--primary-100);
-  transform: scale(1.02);
+  transform: scale(1.01);
 }
 
 .drop-zone-content {
@@ -546,29 +565,56 @@ watch(visible, (newVal) => {
 }
 
 .folder-preview {
-  border: 1px solid var(--surface-border);
-  border-radius: 8px;
-  padding: 1rem;
-  background-color: var(--surface-50);
+  margin-top: 0;
+}
+
+.preview-header {
+  padding: 0.5rem 0;
 }
 
 .preview-tree {
-  max-height: 300px;
+  max-height: 200px;
   overflow-y: auto;
   border: 1px solid var(--surface-border);
-  border-radius: 4px;
-  padding: 0.5rem;
+  border-radius: 6px;
+  padding: 0.75rem;
   background-color: var(--surface-0);
 }
 
 .tree-node-content {
   display: flex;
   align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 0.25rem 0;
 }
 
-.upload-options {
-  border-top: 1px solid var(--surface-border);
-  padding-top: 1rem;
+.node-label {
+  display: flex;
+  align-items: center;
+  flex: 1;
+}
+
+.upload-options-card {
+  margin-top: 1rem !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.upload-options-card :deep(.p-card-content) {
+  padding: 1rem;
+}
+
+:deep(.p-tree) {
+  border: none;
+  padding: 0;
+}
+
+:deep(.p-treenode-content) {
+  padding: 0.25rem 0.5rem;
+}
+
+:deep(.p-treenode-label) {
+  padding: 0;
 }
 
 .upload-progress {
@@ -585,12 +631,11 @@ watch(visible, (newVal) => {
 }
 
 .field {
-  margin-bottom: 1rem;
+  margin-bottom: 0;
 }
 
 .field label {
   display: block;
-  margin-bottom: 0.5rem;
 }
 
 @media (max-width: 768px) {
