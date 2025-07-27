@@ -323,7 +323,7 @@ export default {
 /* Toast */
 .toast {
   position: fixed;
-  bottom: 30px;
+  bottom: 100px;
   left: 50%;
   transform: translateX(-50%);
   background-color: #4caf50;
@@ -334,6 +334,7 @@ export default {
   display: flex;
   align-items: center;
   animation: slideUp 0.3s;
+  z-index: 1000;
 }
 
 @keyframes slideUp {
