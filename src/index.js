@@ -40,8 +40,6 @@ function extractFilesFromObjects(objects, parentPath) {
     .filter(obj => 
       // Must be an image file
       imageExtensions.some(ext => obj.key.toLowerCase().endsWith(ext)) &&
-      // Exclude .thumb directories
-      !obj.key.includes('/.thumb/') &&
       // Exclude placeholder files
       !obj.key.endsWith('/.folder-placeholder')
     )
@@ -63,7 +61,7 @@ function buildFolderHierarchy(objects, parentPath, maxDepth) {
   
   for (const obj of objects) {
     // Skip system files
-    if (obj.key.includes('/.thumb/') || obj.key.endsWith('/.folder-placeholder')) {
+    if (obj.key.endsWith('/.folder-placeholder')) {
       continue;
     }
     
@@ -240,8 +238,12 @@ export default {
     // Serve static assets (Vue app)
     // For client-side routing, serve index.html for non-asset requests
     if (!url.pathname.includes('.') && url.pathname !== '/') {
-      // Fetch index.html directly
-      return env.ASSETS.fetch('/index.html');
+      // Create a new request for index.html
+      const indexRequest = new Request(new URL('/index.html', request.url).toString(), {
+        method: 'GET',
+        headers: request.headers
+      });
+      return env.ASSETS.fetch(indexRequest);
     }
     
     return env.ASSETS.fetch(request);
@@ -254,6 +256,8 @@ async function handleListFolders(env, corsHeaders, request) {
     const path = url.searchParams.get('path') || '';
     const depth = parseInt(url.searchParams.get('depth') || '1');
     const includeFiles = url.searchParams.get('include_files') === 'true';
+    const includePreviews = url.searchParams.get('include_previews') === 'true';
+    const previewCount = parseInt(url.searchParams.get('preview_count') || '4');
     const limit = parseInt(url.searchParams.get('limit') || '1000');
     const offset = parseInt(url.searchParams.get('offset') || '0');
 
@@ -275,7 +279,7 @@ async function handleListFolders(env, corsHeaders, request) {
     if (depth === 1) {
       // Simple folder listing (immediate children only)
       folders = (listed.delimitedPrefixes || [])
-        .filter(prefix => !prefix.includes('/.thumb/') && !prefix.endsWith('/.folder-placeholder'))
+        .filter(prefix => !prefix.endsWith('/.folder-placeholder'))
         .map(prefix => {
           const folderPath = prefix.replace(/\/$/, '');
           const folderName = folderPath.split('/').pop();
@@ -302,6 +306,39 @@ async function handleListFolders(env, corsHeaders, request) {
     const paginatedItems = allItems.slice(offset, offset + limit);
     const paginatedFolders = paginatedItems.filter(item => item.type === 'folder');
     const paginatedFiles = paginatedItems.filter(item => item.type === 'file');
+    
+    // Add preview images to folders if requested
+    if (includePreviews && paginatedFolders.length > 0) {
+      const foldersWithPreviews = await Promise.all(
+        paginatedFolders.map(async (folder) => {
+          const previewImages = await getFolderPreviewImages(env, folder.path, previewCount);
+          return {
+            ...folder,
+            previewImages
+          };
+        })
+      );
+      
+      return new Response(JSON.stringify({
+        success: true,
+        data: {
+          path: sanitizedPath,
+          folders: foldersWithPreviews,
+          files: includeFiles ? paginatedFiles : [],
+          pagination: {
+            total: totalItems,
+            limit,
+            offset,
+            hasMore: offset + limit < totalItems
+          }
+        }
+      }), {
+        headers: {
+          'Content-Type': 'application/json',
+          ...corsHeaders
+        }
+      });
+    }
 
     return new Response(JSON.stringify({
       success: true,
@@ -336,6 +373,36 @@ async function handleListFolders(env, corsHeaders, request) {
   }
 }
 
+// Helper function to get preview images for a folder
+async function getFolderPreviewImages(env, folderPath, count = 4) {
+  try {
+    const options = {
+      prefix: `${folderPath}/`,
+      delimiter: '/',
+      limit: count + 10 // Get a few extra in case some aren't images
+    };
+    
+    const listed = await env.IMAGE_BUCKET.list(options);
+    const imageExtensions = ['.png', '.jpg', '.jpeg', '.gif', '.svg', '.webp'];
+    
+    const previewImages = (listed.objects || [])
+      .filter(obj => 
+        imageExtensions.some(ext => obj.key.toLowerCase().endsWith(ext)) &&
+        !obj.key.endsWith('/.folder-placeholder')
+      )
+      .slice(0, count)
+      .map(obj => ({
+        url: `https://icons.jezweb.com/${encodeURIComponent(obj.key).replace(/%2F/g, '/')}`,
+        name: obj.key.split('/').pop()
+      }));
+    
+    return previewImages;
+  } catch (error) {
+    console.error(`Error fetching preview images for ${folderPath}:`, error);
+    return [];
+  }
+}
+
 async function handleListImages(env, folder, corsHeaders) {
   try {
     // Only show images if a folder is specified
@@ -359,12 +426,11 @@ async function handleListImages(env, folder, corsHeaders) {
 
     const listed = await env.IMAGE_BUCKET.list(options);
     
-    // Filter only image files and exclude any from .thumb subdirectories
+    // Filter only image files
     const imageExtensions = ['.png', '.jpg', '.jpeg', '.gif', '.svg', '.webp'];
     const images = (listed.objects || [])
       .filter(obj => 
-        imageExtensions.some(ext => obj.key.toLowerCase().endsWith(ext)) &&
-        !obj.key.includes('/.thumb/')
+        imageExtensions.some(ext => obj.key.toLowerCase().endsWith(ext))
       );
 
     return new Response(JSON.stringify({
@@ -409,8 +475,6 @@ async function handleGetStats(env, corsHeaders) {
     
     // Process all objects
     for (const obj of listed.objects || []) {
-      // Skip .thumb directory
-      if (obj.key.includes('/.thumb/')) continue;
       
       totalFiles++;
       totalSize += obj.size || 0;

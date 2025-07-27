@@ -41,8 +41,6 @@ async function extractFilesFromObjects(objects, parentPath) {
     .filter(obj => 
       // Must be an image file
       imageExtensions.some(ext => obj.key.toLowerCase().endsWith(ext)) &&
-      // Exclude .thumb directories
-      !obj.key.includes('/.thumb/') &&
       // Exclude placeholder files
       !obj.key.endsWith('/.folder-placeholder')
     )
@@ -64,7 +62,7 @@ function buildFolderHierarchy(objects, parentPath, maxDepth) {
   
   for (const obj of objects) {
     // Skip system files
-    if (obj.key.includes('/.thumb/') || obj.key.endsWith('/.folder-placeholder')) {
+    if (obj.key.endsWith('/.folder-placeholder')) {
       continue;
     }
     
