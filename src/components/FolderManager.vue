@@ -211,7 +211,7 @@ const loadFolders = async () => {
   loading.value = true;
   try {
     // Load folder list
-    const foldersResponse = await fetch('/api/folders?limit=1000', {
+    const foldersResponse = await fetch('/api/folders?limit=1000&include_stats=true', {
       headers: {
         'Authorization': authHeader.value
       }
@@ -221,35 +221,8 @@ const loadFolders = async () => {
     if (foldersData.success && foldersData.data) {
       folders.value = foldersData.data.folders || [];
       
-      // Get stats for each folder
-      const folderStats = await Promise.all(
-        folders.value.map(async (folder) => {
-          try {
-            const imagesResponse = await fetch(`/api/images?folder=${encodeURIComponent(folder.name)}`, {
-              headers: {
-                'Authorization': authHeader.value
-              }
-            });
-            const imagesData = await imagesResponse.json();
-            
-            if (imagesData.success) {
-              const fileCount = imagesData.images.length;
-              const totalSize = imagesData.images.reduce((sum, img) => sum + (img.size || 0), 0);
-              
-              return {
-                ...folder,
-                fileCount,
-                totalSize
-              };
-            }
-            return { ...folder, fileCount: 0, totalSize: 0 };
-          } catch {
-            return { ...folder, fileCount: 0, totalSize: 0 };
-          }
-        })
-      );
-      
-      foldersWithStats.value = folderStats;
+      // Stats are now included in the API response
+      foldersWithStats.value = folders.value;
     }
   } catch (error) {
     console.error('Error loading folders:', error);

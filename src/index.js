@@ -165,6 +165,7 @@ async function handleListFolders(env, corsHeaders, request) {
     const depth = parseInt(url.searchParams.get('depth') || '1');
     const includeFiles = url.searchParams.get('include_files') === 'true';
     const includePreviews = url.searchParams.get('include_previews') === 'true';
+    const includeStats = url.searchParams.get('include_stats') === 'true';
     const previewCount = parseInt(url.searchParams.get('preview_count') || '4');
     const limit = parseInt(url.searchParams.get('limit') || '1000');
     const offset = parseInt(url.searchParams.get('offset') || '0');
@@ -194,7 +195,9 @@ async function handleListFolders(env, corsHeaders, request) {
           return {
             name: folderName,
             path: folderPath,
-            type: 'folder'
+            type: 'folder',
+            fileCount: 0,
+            totalSize: 0
           };
         });
 
@@ -243,15 +246,25 @@ async function handleListFolders(env, corsHeaders, request) {
     const paginatedFolders = paginatedItems.filter(item => item.type === 'folder');
     const paginatedFiles = paginatedItems.filter(item => item.type === 'file');
     
-    // Add preview images to folders if requested
-    if (includePreviews && paginatedFolders.length > 0) {
-      const foldersWithPreviews = await Promise.all(
+    // Add stats and/or preview images to folders if requested
+    if ((includeStats || includePreviews) && paginatedFolders.length > 0) {
+      const enhancedFolders = await Promise.all(
         paginatedFolders.map(async (folder) => {
-          const previewImages = await getFolderPreviewImages(env, folder.path, previewCount);
-          return {
-            ...folder,
-            previewImages
-          };
+          const enhanced = { ...folder };
+          
+          // Add stats if requested
+          if (includeStats && depth === 1) {
+            const stats = await calculateFolderStats(env, folder.path);
+            enhanced.fileCount = stats.fileCount;
+            enhanced.totalSize = stats.totalSize;
+          }
+          
+          // Add preview images if requested
+          if (includePreviews) {
+            enhanced.previewImages = await getFolderPreviewImages(env, folder.path, previewCount);
+          }
+          
+          return enhanced;
         })
       );
       
@@ -259,7 +272,7 @@ async function handleListFolders(env, corsHeaders, request) {
         success: true,
         data: {
           path: sanitizedPath,
-          folders: foldersWithPreviews,
+          folders: enhancedFolders,
           files: includeFiles ? paginatedFiles : [],
           pagination: {
             total: totalItems,
@@ -306,6 +319,30 @@ async function handleListFolders(env, corsHeaders, request) {
         ...corsHeaders
       }
     });
+  }
+}
+
+// Helper function to calculate folder stats
+async function calculateFolderStats(env, folderPath) {
+  try {
+    const allObjects = await listAllObjects(env, `${folderPath}/`);
+    const imageExtensions = ['.png', '.jpg', '.jpeg', '.gif', '.svg', '.webp'];
+    
+    let fileCount = 0;
+    let totalSize = 0;
+    
+    for (const obj of allObjects) {
+      if (!obj.key.endsWith('/.folder-placeholder') && 
+          imageExtensions.some(ext => obj.key.toLowerCase().endsWith(ext))) {
+        fileCount++;
+        totalSize += obj.size || 0;
+      }
+    }
+    
+    return { fileCount, totalSize };
+  } catch (error) {
+    console.error(`Error calculating stats for ${folderPath}:`, error);
+    return { fileCount: 0, totalSize: 0 };
   }
 }
 
