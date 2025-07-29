@@ -135,17 +135,16 @@ while (hasMore) {
 
 **Status**: Fixed and deployed on January 29, 2025
 
-### Other Limitations
+### Remaining Limitations
 1. **Performance**:
    - No caching mechanism for folder structure
    - Preview images load synchronously
-   - Large folders may be slow to load
+   - Deep folder hierarchies require multiple R2 API calls
 
 2. **UI/UX**:
    - Tree view state not persisted between sessions
    - No search functionality
-   - Long folder names may overflow
-   - Upload modal styling issues on some browsers
+   - Long folder names may overflow without tooltip
 
 3. **Security**:
    - Basic auth credentials stored in localStorage
@@ -153,11 +152,12 @@ while (hasMore) {
    - No file type validation beyond extensions
 
 4. **Features Not Implemented**:
-   - Bulk file operations (delete, move)
+   - Bulk file operations (multi-select delete, move)
    - Image editing/cropping
    - Sharing links with expiration
    - Access control per folder
    - Audit logging
+   - Folder download as ZIP
 
 ## Configuration
 
@@ -191,12 +191,43 @@ git push origin master
 ```
 
 ## Recent Updates (January 2025)
+
+### Initial Fixes
 1. Fixed authentication issues with missing `.value` on authHeader refs
 2. Enhanced folder upload modal styling with PrimeVue components
 3. Added limit parameter (1000) to folder API calls
 4. Improved CSS specificity for theme application
 5. Added comprehensive project documentation
-6. **Fixed folder tree pagination issue** - Now properly fetches all folders (up to 50k objects) instead of just the first 1000
+6. Fixed folder tree pagination issue - Now properly fetches all folders (up to 50k objects)
+
+### Major Refactoring (January 29, 2025)
+Following a comprehensive code review, the following improvements were made:
+
+1. **Critical Bug Fixes**:
+   - Fixed pagination in folder operations (rename, move, delete) to handle >1000 files
+   - Added batch processing for better performance and error handling
+   - Implemented proper error tracking and progress reporting
+
+2. **Code Consolidation**:
+   - Moved `formatSize` to utils.js and removed duplicates from all components
+   - Imported shared utilities in index.js, eliminating duplicate implementations
+   - Reduced code duplication across the codebase
+
+3. **Performance Optimization**:
+   - Fixed N+1 query problem in FolderManager
+   - Added `includeStats` parameter to /api/folders endpoint
+   - Eliminated separate API calls for each folder's stats
+   - Significant performance improvement for folder listing
+
+4. **UX Improvements**:
+   - Replaced all `alert()` calls with PrimeVue toast notifications
+   - Added proper success/error/warning messages
+   - Improved user feedback with non-blocking notifications
+
+5. **Code Quality**:
+   - Created comprehensive refactoring plan
+   - Documented all changes and improvements
+   - Maintained backward compatibility
 
 ## Security Considerations
 - All admin endpoints require authentication
