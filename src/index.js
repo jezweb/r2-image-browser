@@ -125,6 +125,34 @@ function getContentTypeFromExtension(filename) {
   return mimeTypes[ext] || 'application/octet-stream';
 }
 
+// Utility function to list all objects with pagination
+async function listAllObjects(env, prefix, maxObjects = 50000) {
+  const allObjects = [];
+  let cursor = undefined;
+  let hasMore = true;
+  
+  while (hasMore && allObjects.length < maxObjects) {
+    const listResult = await env.IMAGE_BUCKET.list({
+      prefix: prefix,
+      limit: 1000,
+      cursor: cursor
+    });
+    
+    if (listResult.objects && listResult.objects.length > 0) {
+      allObjects.push(...listResult.objects);
+    }
+    
+    hasMore = listResult.truncated;
+    cursor = listResult.cursor;
+  }
+  
+  if (allObjects.length >= maxObjects) {
+    console.warn(`Reached maximum object limit of ${maxObjects} for prefix: ${prefix}`);
+  }
+  
+  return allObjects;
+}
+
 // Basic Authentication check function
 function isAuthenticated(request, env) {
   const authorization = request.headers.get('Authorization');
@@ -1120,8 +1148,9 @@ async function handleCreateNestedFolder(request, env, corsHeaders) {
 async function handleMoveFolder(request, env, corsHeaders) {
   try {
     const body = await request.json();
-    const sourcePath = body.sourcePath?.trim();
-    const targetPath = body.targetPath?.trim();
+    // Support both API formats
+    const sourcePath = (body.sourcePath || body.source)?.trim();
+    const targetPath = (body.targetPath || body.target)?.trim();
     const createParents = body.createParents !== false; // default to true
     
     if (!sourcePath || !targetPath) {
@@ -1210,13 +1239,10 @@ async function handleMoveFolder(request, env, corsHeaders) {
       }
     }
     
-    // List all objects in the source folder (recursively)
-    const objectsToMove = await env.IMAGE_BUCKET.list({
-      prefix: `${sanitizedSourcePath}/`,
-      limit: 1000 // TODO: Handle pagination for very large folders
-    });
+    // List all objects in the source folder (recursively) with pagination
+    const allObjects = await listAllObjects(env, `${sanitizedSourcePath}/`);
     
-    if (!objectsToMove.objects || objectsToMove.objects.length === 0) {
+    if (allObjects.length === 0) {
       return new Response(JSON.stringify({
         success: false,
         error: 'Source folder is empty or not found'
@@ -1232,10 +1258,15 @@ async function handleMoveFolder(request, env, corsHeaders) {
     let movedFiles = 0;
     let movedFolders = 0;
     const moveResults = [];
+    const errors = [];
     const placeholdersSeen = new Set();
     
-    // Move each object to the new location
-    for (const obj of objectsToMove.objects) {
+    // Move each object to the new location in batches
+    const BATCH_SIZE = 50;
+    for (let i = 0; i < allObjects.length; i += BATCH_SIZE) {
+      const batch = allObjects.slice(i, i + BATCH_SIZE);
+      
+      await Promise.all(batch.map(async (obj) => {
       try {
         const oldKey = obj.key;
         const relativePath = oldKey.substring(sanitizedSourcePath.length + 1);
@@ -1276,14 +1307,19 @@ async function handleMoveFolder(request, env, corsHeaders) {
             type: oldKey.endsWith('/.folder-placeholder') ? 'folder' : 'file'
           });
         }
-      } catch (moveError) {
-        moveResults.push({ 
-          oldKey: obj.key, 
-          newKey: obj.key.replace(`${sanitizedSourcePath}/`, `${sanitizedTargetPath}/`), 
-          success: false, 
-          error: moveError.message 
-        });
-      }
+        } catch (moveError) {
+          errors.push({
+            oldKey: obj.key,
+            error: moveError.message
+          });
+          moveResults.push({ 
+            oldKey: obj.key, 
+            newKey: obj.key.replace(`${sanitizedSourcePath}/`, `${sanitizedTargetPath}/`), 
+            success: false, 
+            error: moveError.message 
+          });
+        }
+      }));
     }
     
     // Create target folder placeholder if it doesn't exist
@@ -1302,10 +1338,11 @@ async function handleMoveFolder(request, env, corsHeaders) {
         targetPath: sanitizedTargetPath,
         movedFiles,
         movedFolders,
-        totalObjects: objectsToMove.objects.length,
+        totalObjects: allObjects.length,
         successfulMoves,
         failedMoves: moveResults.filter(r => !r.success).length,
-        details: moveResults
+        errors: errors.length > 0 ? errors : undefined,
+        details: moveResults.length < 100 ? moveResults : `${moveResults.length} files processed`
       }
     }), {
       headers: {
@@ -1418,13 +1455,10 @@ async function handleRenameFolder(request, env, corsHeaders, oldFolderName) {
       });
     }
     
-    // List all objects in the old folder
-    const objectsToMove = await env.IMAGE_BUCKET.list({
-      prefix: `${oldFolderName}/`,
-      limit: 1000
-    });
+    // List all objects in the old folder with pagination
+    const allObjects = await listAllObjects(env, `${oldFolderName}/`);
     
-    if (!objectsToMove.objects || objectsToMove.objects.length === 0) {
+    if (allObjects.length === 0) {
       return new Response(JSON.stringify({
         success: false,
         error: 'Folder not found or is empty'
@@ -1439,9 +1473,10 @@ async function handleRenameFolder(request, env, corsHeaders, oldFolderName) {
     
     let movedCount = 0;
     const moveResults = [];
+    const errors = [];
     
     // Move each object to the new folder
-    for (const obj of objectsToMove.objects) {
+    for (const obj of allObjects) {
       try {
         const oldKey = obj.key;
         const newKey = oldKey.replace(`${oldFolderName}/`, `${newFolderName}/`);
@@ -1472,8 +1507,9 @@ async function handleRenameFolder(request, env, corsHeaders, oldFolderName) {
       success: movedCount > 0,
       message: `Moved ${movedCount} files from '${oldFolderName}' to '${newFolderName}'`,
       movedCount,
-      totalFiles: objectsToMove.objects.length,
-      details: moveResults
+      totalFiles: allObjects.length,
+      errors: errors.length > 0 ? errors : undefined,
+      details: moveResults.length < 100 ? moveResults : `${moveResults.length} files processed`
     }), {
       headers: {
         'Content-Type': 'application/json',
@@ -1496,13 +1532,10 @@ async function handleRenameFolder(request, env, corsHeaders, oldFolderName) {
 
 async function handleDeleteFolder(request, env, corsHeaders, folderName) {
   try {
-    // List all objects in the folder
-    const objectsToDelete = await env.IMAGE_BUCKET.list({
-      prefix: `${folderName}/`,
-      limit: 1000
-    });
+    // List all objects in the folder with pagination
+    const allObjects = await listAllObjects(env, `${folderName}/`);
     
-    if (!objectsToDelete.objects || objectsToDelete.objects.length === 0) {
+    if (allObjects.length === 0) {
       return new Response(JSON.stringify({
         success: false,
         error: 'Folder not found or is already empty'
@@ -1517,28 +1550,39 @@ async function handleDeleteFolder(request, env, corsHeaders, folderName) {
     
     let deletedCount = 0;
     const deleteResults = [];
+    const errors = [];
     
-    // Delete each object in the folder
-    for (const obj of objectsToDelete.objects) {
-      try {
-        await env.IMAGE_BUCKET.delete(obj.key);
-        deletedCount++;
-        deleteResults.push({ key: obj.key, success: true });
-      } catch (deleteError) {
-        deleteResults.push({ 
-          key: obj.key, 
-          success: false, 
-          error: deleteError.message 
-        });
-      }
+    // Delete each object in the folder in batches
+    const BATCH_SIZE = 50;
+    for (let i = 0; i < allObjects.length; i += BATCH_SIZE) {
+      const batch = allObjects.slice(i, i + BATCH_SIZE);
+      
+      await Promise.all(batch.map(async (obj) => {
+        try {
+          await env.IMAGE_BUCKET.delete(obj.key);
+          deletedCount++;
+          deleteResults.push({ key: obj.key, success: true });
+        } catch (deleteError) {
+          errors.push({ 
+            key: obj.key, 
+            error: deleteError.message 
+          });
+          deleteResults.push({ 
+            key: obj.key, 
+            success: false, 
+            error: deleteError.message 
+          });
+        }
+      }));
     }
     
     return new Response(JSON.stringify({
       success: deletedCount > 0,
       message: `Deleted ${deletedCount} files from folder '${folderName}'`,
       deletedCount,
-      totalFiles: objectsToDelete.objects.length,
-      details: deleteResults
+      totalFiles: allObjects.length,
+      errors: errors.length > 0 ? errors : undefined,
+      details: deleteResults.length < 100 ? deleteResults : `${deleteResults.length} files processed`
     }), {
       headers: {
         'Content-Type': 'application/json',
