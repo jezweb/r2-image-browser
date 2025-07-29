@@ -3,12 +3,14 @@
 ## Overview
 R2 Image Browser is a full-featured Cloudflare Workers-based application for managing and browsing images stored in Cloudflare R2 buckets. It provides a modern, responsive interface with hierarchical folder support, authentication, and advanced file management capabilities.
 
-## Current Status (January 2025)
+## Current Status (January 29, 2025)
 - **Production URL**: https://iconbrowser.jezweb.com
 - **Deployment**: Cloudflare Workers with custom domain routing
 - **Architecture**: Vue 3 SPA + Cloudflare Workers API
 - **Authentication**: Working with Basic Auth for admin features
-- **Folder Support**: Full hierarchical folder structure with some pagination limitations
+- **Folder Support**: Full hierarchical folder structure with pagination fixed
+- **Code Quality**: Recently refactored to eliminate duplicates and improve performance
+- **Last Major Update**: Comprehensive refactoring completed on January 29, 2025
 
 ## Core Features
 
@@ -236,9 +238,12 @@ Following a comprehensive code review, the following improvements were made:
 - CORS headers configured for production domain
 
 ## Performance Optimizations
+- ✅ Fixed N+1 query issue in folder management (January 29, 2025)
+- ✅ Server-side folder stats calculation via `includeStats` parameter
+- ✅ Paginated R2 operations for unlimited folder/file handling
+- ✅ Batch processing for large folder operations (50 items per batch)
 - Lazy loading for folder contents
 - Thumbnail generation on-demand
-- Pagination for large folder listings
 - Efficient R2 API usage with prefixes and delimiters
 
 ## Future Improvements
@@ -310,5 +315,76 @@ Following a comprehensive code review, the following improvements were made:
 - Worker metrics for performance
 - R2 storage metrics for usage
 
+## Code Quality Status
+
+### ✅ Completed Refactoring (January 29, 2025)
+- **No Duplicate Functions**: All utility functions consolidated in utils.js
+- **No Alert() Usage**: Replaced with PrimeVue toast notifications for better UX
+- **No N+1 Queries**: Fixed performance bottleneck in folder management
+- **Proper Error Handling**: Comprehensive error tracking in all operations
+- **Pagination Fixed**: All folder operations now handle unlimited files
+
+### Test Coverage
+- Unit tests for utility functions
+- Component tests for Vue components
+- Integration tests for upload workflows
+- API endpoint tests with mocked R2
+
+### Development Workflow
+1. Create feature branch from `master`
+2. Write tests first (TDD approach)
+3. Implement feature with proper error handling
+4. Update documentation
+5. Create PR for review
+6. Deploy via `npm run deploy`
+
+## Developer Notes for Future Sessions
+
+### Critical Files to Remember
+- `/src/index.js` - Main Cloudflare Worker with all API endpoints
+- `/src/utils.js` - Shared utility functions (formatSize, validatePath, etc.)
+- `/src/components/FolderManager.vue` - Admin folder management with stats
+- `/src/components/FolderNavigator.vue` - Main navigation interface
+- `/docs/REFACTORING_PLAN.md` - Completed refactoring documentation
+
+### Key API Parameters
+- `?include_stats=true` - Server-side folder stats calculation
+- `?limit=1000` - Pagination limit for folder/file requests
+- `?depth=3` - Hierarchical folder tree depth
+
+### Common Operations
+```bash
+# Development
+npm run dev
+
+# Testing
+npm test
+
+# Deployment
+npm run deploy
+
+# Git workflow with proper commit messages
+git add -A
+git commit -m "feat: description
+
+🤖 Generated with [Claude Code](https://claude.ai/code)
+
+Co-Authored-By: Claude <noreply@anthropic.com>"
+git push origin master
+```
+
+### Recent Architectural Changes
+1. **listAllObjects()** utility function handles R2 pagination automatically
+2. **calculateFolderStats()** eliminates separate API calls per folder
+3. **PrimeVue toast** system provides non-blocking user feedback
+4. **Batch processing** prevents timeouts on large operations
+
+### Known Technical Debt
+- No caching layer (consider Redis/KV for frequently accessed data)
+- Basic auth stored in localStorage (consider JWT tokens)
+- No rate limiting on expensive operations
+- Tree view state not persisted between sessions
+
 ---
-*Last updated: January 2025*
+*Last updated: January 29, 2025*
+*Major refactoring completed and documented*
