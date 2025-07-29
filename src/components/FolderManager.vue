@@ -181,9 +181,11 @@
 
 <script setup>
 import { ref, onMounted, inject, nextTick } from 'vue';
+import { useToast } from 'primevue/usetoast';
 import { formatSize } from '../utils.js';
 
 const emit = defineEmits(['foldersChanged']);
+const toast = useToast();
 
 const authHeader = inject('authHeader');
 const folders = ref([]);
@@ -266,11 +268,27 @@ const saveRename = async (oldName) => {
     if (result.success) {
       await loadFolders();
       emit('foldersChanged');
+      toast.add({ 
+        severity: 'success', 
+        summary: 'Success', 
+        detail: 'Folder renamed successfully',
+        life: 3000 
+      });
     } else {
-      alert('Error renaming folder: ' + (result.error || 'Unknown error'));
+      toast.add({ 
+        severity: 'error', 
+        summary: 'Error', 
+        detail: 'Error renaming folder: ' + (result.error || 'Unknown error'),
+        life: 5000 
+      });
     }
   } catch (error) {
-    alert('Network error: ' + error.message);
+    toast.add({ 
+      severity: 'error', 
+      summary: 'Network Error', 
+      detail: error.message,
+      life: 5000 
+    });
   } finally {
     cancelEdit();
   }
@@ -304,11 +322,27 @@ const executeDelete = async () => {
     if (result.success) {
       await loadFolders();
       emit('foldersChanged');
+      toast.add({ 
+        severity: 'success', 
+        summary: 'Success', 
+        detail: 'Folder deleted successfully',
+        life: 3000 
+      });
     } else {
-      alert('Error deleting folder: ' + (result.error || 'Unknown error'));
+      toast.add({ 
+        severity: 'error', 
+        summary: 'Error', 
+        detail: 'Error deleting folder: ' + (result.error || 'Unknown error'),
+        life: 5000 
+      });
     }
   } catch (error) {
-    alert('Network error: ' + error.message);
+    toast.add({ 
+      severity: 'error', 
+      summary: 'Network Error', 
+      detail: error.message,
+      life: 5000 
+    });
   } finally {
     isDeleting.value = false;
     cancelDelete();
@@ -354,11 +388,27 @@ const executeMove = async () => {
     if (result.success) {
       await loadFolders();
       emit('foldersChanged');
+      toast.add({ 
+        severity: 'success', 
+        summary: 'Success', 
+        detail: 'Folder moved successfully',
+        life: 3000 
+      });
     } else {
-      alert('Error moving folder: ' + (result.error || 'Unknown error'));
+      toast.add({ 
+        severity: 'error', 
+        summary: 'Error', 
+        detail: 'Error moving folder: ' + (result.error || 'Unknown error'),
+        life: 5000 
+      });
     }
   } catch (error) {
-    alert('Network error: ' + error.message);
+    toast.add({ 
+      severity: 'error', 
+      summary: 'Network Error', 
+      detail: error.message,
+      life: 5000 
+    });
   } finally {
     isMoving.value = false;
     cancelMove();

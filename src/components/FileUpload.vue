@@ -79,6 +79,7 @@
 
 <script setup>
 import { ref, onMounted, inject } from 'vue';
+import { useToast } from 'primevue/usetoast';
 
 const props = defineProps({
   folders: {
@@ -90,6 +91,7 @@ const props = defineProps({
 const emit = defineEmits(['uploaded']);
 
 const authHeader = inject('authHeader');
+const toast = useToast();
 const isDragging = ref(false);
 const selectedFiles = ref([]);
 const targetFolder = ref('');
@@ -155,7 +157,12 @@ const uploadFiles = async () => {
   
   const validFiles = selectedFiles.value.filter(f => !f.error);
   if (validFiles.length === 0) {
-    alert('No valid files to upload');
+    toast.add({ 
+      severity: 'warn', 
+      summary: 'No valid files', 
+      detail: 'Please select valid files to upload',
+      life: 3000 
+    });
     return;
   }
   
@@ -224,7 +231,19 @@ const uploadFiles = async () => {
 
 const copyUrl = (url) => {
   navigator.clipboard.writeText(url).then(() => {
-    alert('URL copied to clipboard!');
+    toast.add({ 
+      severity: 'success', 
+      summary: 'Copied!', 
+      detail: 'URL copied to clipboard',
+      life: 2000 
+    });
+  }).catch(() => {
+    toast.add({ 
+      severity: 'error', 
+      summary: 'Error', 
+      detail: 'Failed to copy URL',
+      life: 3000 
+    });
   });
 };
 </script>
