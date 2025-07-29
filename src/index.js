@@ -294,8 +294,36 @@ async function handleListFolders(env, corsHeaders, request) {
         files = await extractFilesFromObjects(listed.objects || [], sanitizedPath);
       }
     } else {
-      // Deep listing - build hierarchical structure
-      const hierarchyResult = buildFolderHierarchy(listed.objects || [], sanitizedPath, depth);
+      // Deep listing - need to fetch all objects with pagination
+      const allObjects = [];
+      let cursor = undefined;
+      let hasMore = true;
+      
+      while (hasMore) {
+        const deepListOptions = {
+          prefix: sanitizedPath ? `${sanitizedPath}/` : '',
+          limit: 1000,
+          cursor: cursor
+        };
+        
+        const deepListed = await env.IMAGE_BUCKET.list(deepListOptions);
+        
+        if (deepListed.objects && deepListed.objects.length > 0) {
+          allObjects.push(...deepListed.objects);
+        }
+        
+        hasMore = deepListed.truncated;
+        cursor = deepListed.cursor;
+        
+        // Safety limit to prevent infinite loops
+        if (allObjects.length > 50000) {
+          console.warn('Reached safety limit of 50,000 objects');
+          break;
+        }
+      }
+      
+      // Build hierarchical structure from all objects
+      const hierarchyResult = buildFolderHierarchy(allObjects, sanitizedPath, depth);
       folders = hierarchyResult.folders;
       files = hierarchyResult.files;
     }

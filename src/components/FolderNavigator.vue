@@ -482,7 +482,8 @@ const loadFolderContents = async (path) => {
       include_files: 'true',
       include_previews: 'true',
       preview_count: '4',
-      depth: '1'
+      depth: '1',
+      limit: '1000'
     });
     
     const response = await fetch(`/api/folders?${params}`, {
@@ -512,7 +513,7 @@ const loadFolderTree = async () => {
   isLoadingTree.value = true;
   
   try {
-    const response = await fetch('/api/folders?depth=3', {
+    const response = await fetch('/api/folders?depth=3&limit=1000', {
       headers: {
         'Authorization': authHeader.value
       }

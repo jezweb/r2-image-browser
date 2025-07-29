@@ -230,7 +230,7 @@ export default {
 
     const loadFolders = async () => {
       try {
-        const response = await fetch('/api/folders', {
+        const response = await fetch('/api/folders?limit=1000', {
           headers: {
             'Authorization': authHeader.value
           }

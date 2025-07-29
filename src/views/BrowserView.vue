@@ -59,7 +59,7 @@ export default {
 
     const loadFolders = async () => {
       try {
-        const response = await fetch('/api/folders?path=&include_files=true&depth=1', {
+        const response = await fetch('/api/folders?path=&include_files=true&depth=1&limit=1000', {
           headers: {
             'Authorization': authHeader.value
           }

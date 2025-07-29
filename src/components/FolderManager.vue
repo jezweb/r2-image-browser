@@ -216,7 +216,7 @@ const loadFolders = async () => {
   loading.value = true;
   try {
     // Load folder list
-    const foldersResponse = await fetch('/api/folders', {
+    const foldersResponse = await fetch('/api/folders?limit=1000', {
       headers: {
         'Authorization': authHeader.value
       }
