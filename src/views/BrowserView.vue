@@ -40,6 +40,7 @@
 import { ref, onMounted, inject } from 'vue'
 import { useRouter } from 'vue-router'
 import FolderNavigator from '../components/FolderNavigator.vue'
+import { formatSize } from '../utils.js'
 
 export default {
   name: 'BrowserView',
@@ -154,13 +155,7 @@ export default {
       }, 3000)
     }
 
-    const formatSize = (bytes) => {
-      if (bytes === 0) return '0 Bytes'
-      const k = 1024
-      const sizes = ['Bytes', 'KB', 'MB', 'GB']
-      const i = Math.floor(Math.log(bytes) / Math.log(k))
-      return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
-    }
+    // formatSize is now imported from utils.js
 
     const imageLoaded = (event) => {
       event.target.classList.add('loaded')

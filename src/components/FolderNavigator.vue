@@ -307,6 +307,7 @@
 <script setup>
 import { ref, computed, watch, onMounted, onUnmounted, inject } from 'vue';
 import FolderTreeView from './FolderTreeView.vue';
+import { formatSize } from '../utils.js';
 import FolderThumbnailGrid from './FolderThumbnailGrid.vue';
 
 const props = defineProps({
@@ -641,13 +642,7 @@ const buildNestedTree = (flatFolders) => {
   return tree;
 };
 
-const formatSize = (bytes) => {
-  if (bytes === 0) return '0 B';
-  const k = 1024;
-  const sizes = ['B', 'KB', 'MB', 'GB'];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
-};
+// formatSize is now imported from utils.js
 
 const formatDate = (dateString) => {
   const date = new Date(dateString);

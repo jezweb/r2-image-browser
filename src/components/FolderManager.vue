@@ -181,6 +181,7 @@
 
 <script setup>
 import { ref, onMounted, inject, nextTick } from 'vue';
+import { formatSize } from '../utils.js';
 
 const emit = defineEmits(['foldersChanged']);
 
@@ -204,13 +205,7 @@ const moveTargetPath = ref('');
 const isMoving = ref(false);
 const availableTargets = ref([]);
 
-const formatSize = (bytes) => {
-  if (bytes === 0) return '0 B';
-  const k = 1024;
-  const sizes = ['B', 'KB', 'MB', 'GB'];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-};
+// formatSize is now imported from utils.js
 
 const loadFolders = async () => {
   loading.value = true;
